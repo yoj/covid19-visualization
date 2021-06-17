@@ -1,5 +1,3 @@
-import { GetStaticProps } from 'next'
-import fs from 'fs'
 import Layout from '../components/Layout'
 import * as Highcharts from 'highcharts'
 import HighchartsMore from 'highcharts/highcharts-more'
@@ -139,7 +137,7 @@ const Covid19Page = ( {infectedAtLastMonth, vaccinationForGraph} ) => {
 
     return (
         <Layout title="Covid19 graph">
-            <h1>Covid19</h1>
+            <h1>Covid19 visualization</h1>
             <HighchartsReact highcharts={Highcharts} options={options} />
         </Layout>
     )
