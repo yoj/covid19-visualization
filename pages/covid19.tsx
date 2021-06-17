@@ -8,18 +8,39 @@ import HighchartsReact from 'highcharts-react-official'
 import {ndjsonToJsonText} from 'ndjson-to-json-text'
 
 type Infected = {
-    date: string,
-    name_jp: string,
+    date:      string,
+    name_jp:   string,
     npatients: string
 }
 
 type InfectedAll = Infected[]
 
-const Covid19Page = ( {InfectedAll} ) => {
+type vaccination = {
+    date:           string,
+    prefecture:     string,
+    gender:         string,
+    age:            string,
+    medical_worker: boolean,
+    status:         string,
+    count:          number
+}
+
+type vaccinationAll = vaccination[]
+
+type vaccinationForGraph = {
+    date:   string[],
+    first:  number[],
+    second: number[] 
+}
+
+const Covid19Page = ( {infectedAtLastMonth, vaccinationForGraph} ) => {
     const xDate: string[] = []
     const yInfected: number[] = []
-    InfectedAll.map((data: Infected, index: number) => {
-        const nextItem = InfectedAll[(index + 1)]
+    infectedAtLastMonth.map((data: Infected, index: number) => {
+
+        //console.log(vaccinationJson)
+
+        const nextItem = infectedAtLastMonth[(index + 1)]
         
         let dailyinfected = 0
         if(nextItem !== undefined) {
@@ -83,11 +104,16 @@ const Covid19Page = ( {InfectedAll} ) => {
             data: yInfected.reverse(),
             pointPlacement: 'on'
           },
-          /*{
-            name: 'Actual Spending',
-            data: [50000, 39000, 42000, 31000, 26000, 14000],
+          {
+            name: 'Tokyo vaccination 1',
+            data: vaccinationForGraph.first,
             pointPlacement: 'on'
-          }*/
+          },
+          {
+            name: 'Tokyo vaccination 2',
+            data: vaccinationForGraph.second,
+            pointPlacement: 'on'
+          }
         ],
      
         responsive: {
@@ -124,28 +150,62 @@ export default Covid19Page
 
 export const getStaticProps = async () => {
 
+    const graphStartDate = Date.parse("2021-04-12")
+
     /** 感染者数 */
     const res = await fetch("https://opendata.corona.go.jp/api/Covid19JapanAll?dataName=%E6%9D%B1%E4%BA%AC%E9%83%BD")
     const json = await res.json()
     const InfectedAll = json.itemList as InfectedAll
 
+    const infectedAtLastMonth: Infected[] = []
+    InfectedAll.map(v => {
+        if ( Date.parse(v.date) >= graphStartDate ) {
+            infectedAtLastMonth.push(v)
+        }
+    })
+
     /** ワクチン接種数 */
     const vaccination = await fetch("https://vrs-data.cio.go.jp/vaccination/opendata/latest/prefecture.ndjson")
     const vaccinationText = await vaccination.text()
-    const vaccinationJson = ndjsonToJsonText(vaccinationText)
-    const vaccinationJsonObject = JSON.parse(vaccinationJson)
-
-    console.log(vaccinationJsonObject)
+    const vaccinationJson = JSON.parse( ndjsonToJsonText(vaccinationText) ) as vaccinationAll
     
-    /*fs.createReadStream("https://vrs-data.cio.go.jp/vaccination/opendata/latest/prefecture.ndjson")
-        .pipe(ndjson.parse())
-        .on('data', function(obj) {
-            // obj is a javascript object
-            console.log(obj)
-        })
-    */
+    let vaccinationForGraph: vaccinationForGraph = {date:[], first:[], second:[]}
+    vaccinationJson.map(v => {
+        if ( Date.parse(v.date) >= graphStartDate && v.prefecture == "13" ) {
+
+
+            console.log( Number(v.status) === 1 )
+
+            if( (vaccinationForGraph.date.includes(v.date)) === false ) {
+                if (Number(v.status) === 1) {
+                    vaccinationForGraph.first.push(v.count)
+                } else {
+                    console.log("in")
+                    vaccinationForGraph.second.push(v.count)
+                }
+                vaccinationForGraph.date.push(v.date)
+            } else {
+                const index = vaccinationForGraph.date.indexOf(v.date)
+                if (Number(v.status) === 1) {
+                    vaccinationForGraph.first[index] += v.count
+                } else {
+                    console.log("in!!")
+                    vaccinationForGraph.second[index] += v.count
+                }
+
+            }            
+        }
+    })
+
+    //console.log( vaccinationForGraph )
+
+    //console.log(vaccinationAtLastMonth)
+    
     return {
-        props: {InfectedAll}
+        props: {
+            infectedAtLastMonth,
+            vaccinationForGraph
+        }
     }
 }
 
